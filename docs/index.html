@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Blackjack Fair</title>
+  <title>Blackjack Verify</title>
+  <link rel="stylesheet" href="./highlight.css">
+  <script src="./highlight.min.js"></script>
   <script src="./crypto-js.js"></script>
   <style>
     body{
@@ -15,8 +17,21 @@
     :focus{
       outline: none;
     }
+    ::-webkit-scrollbar {
+      background-color:#303e56;
+      border-radius: 3px;
+      height: 6px;
+      width: 6px
+    }
+    ::-webkit-scrollbar-corner{
+      background-color: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #6c7d9b;
+      border-radius: 3px
+    }
     input[type="text"]{
-      box-sizing: border-box; width: 200px;
+      box-sizing: border-box; width: 260px;
       border: 2px solid #F7BB0A;
       background-color: transparent;
       color: #fff;
@@ -25,28 +40,35 @@
       line-height: 20px;
     }
     button{
-      box-sizing: border-box; width: 200px;
+      box-sizing: border-box; width: 260px;
       color: #fff;
       background-color: #F7BB0A;
       border: none;
       padding: 10px 20px;
       border-radius: 3px;
     }
+    .tc{
+      text-align: center;
+    }
     .form-item{
-      margin: 10px 0;
+      margin: 16px 0;
+    }
+    .cardbox{
+      position: relative;
+      display: inline-block; width: 20px; height: 50px; padding: 15px 15px;
     }
     .card{
-      position: relative; cursor: pointer;
-      display: inline-block; width: 20px; height: 30px; margin: 10px;
+      position: absolute; cursor: pointer;
+      width: 20px; height: 30px;
       background-color: #e0e4eb;
       border-radius: 2px;
       line-height: 16px;
       box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
     }
-    .card.red{
+    .cardbox.red{
       color: #f00;
     }
-    .card.black{
+    .cardbox.black{
       color: #000;
     }
     .card .point{
@@ -58,25 +80,49 @@
       position: absolute; bottom: 1px; right: 2px;
       font-size: 20px;
     }
+    .cardbox .index{
+      position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; color: #fff;
+      font-size: 12px; line-height: 20px;
+    }
+    .cardbox.active .card, .cardbox:hover .card{
+      transform: scale(2);
+    }
+    .cardbox.active .index, .cardbox:hover .index{
+      bottom: 0;
+    }
+    .script_box{
+      width: 600px; height: 600px; float: left; overflow-y: hidden;
+    }
+    .script_box>code{
+      height: 100%;
+      box-sizing: border-box;
+    }
+    #form{
+      margin-left: 600px; padding-top: 200px;
+    }
+    #cards{
+      clear: both;
+    }
   </style>
 </head>
 <body>
-  <div>
-    <div class="form-item">
-      <p>Begin Hash</p>
-      <input id="begin" type="text">
+  <pre class="script_box"><code id="script_clone" class="javascript"></code></pre>
+  <div id="form">
+    <div class="form-item tc">
+      <h3>BC.GAME Blackjack Verify</h3>
     </div>
-    <div class="form-item">
+    <div class="form-item tc">
+      <input id="begin" type="text" placeholder="Begin Hash">
+    </div>
+    <div class="form-item tc">
       <button id="button">Verify</button>
     </div>
-    <div id="cards" class="form-item">
-
-    </div>
   </div>
-  <script>
+  <div id="cards" class="form-item"></div>
+  <script id="script">
     (function(){
       const CARDS = " ,A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
-      const FLOWER = ["♠", "♥", "♣", "♦"]
+      const FLOWER = ["♠", "♥", "♣", "♦"];
       const allCards = [];
       for ( let c = 10; c <= 13; c++ ) {
         for( let v = 1; v <= 13; v++ ) {
@@ -86,6 +132,7 @@
 
       function createCards (hash, times, cards, hashList) {
         hashList.push(hash);
+        if (times <= 0) return
         let h = hash;
         allCards.forEach((c) => {
           cards.push({card: c, hash: h});
@@ -93,12 +140,8 @@
         });
 
         hash = String(CryptoJS.SHA256(hash));
-        if (times <= 0) {
-          return
-        } else {
-          times--;
-          createCards(hash, times, cards, hashList);
-        }
+        times--;
+        createCards(hash, times, cards, hashList);
       }
 
       function create (hash, times) {
@@ -118,14 +161,19 @@
         return cards;
       }
 
-      function createCardFram (card) {
+      function createCardFram (card, index) {
         let flowerIndex = (card & 240) / 16 - 10;
         let flower = FLOWER[flowerIndex];
         let point = CARDS[card % 16];
-        let style = flowerIndex % 2 === 0 ? "red" : "black";
-        let node = document.createElement('div');
-        node.className = ["card", style].join(" ");
-        return '<div class="card '+style+'"><div class="flower">'+flower+'</div><div class="point">'+point+'</div></div>';
+        let style = flowerIndex % 2 === 0 ? "black" : "red";
+        let classNames = ["cardbox", style];
+        if (range && index >= range[0] && index < range[1]) {
+          classNames.push("active");
+        }
+        return '<div class="'+classNames.join(" ")+'"><div class="card"><div class="flower">'
+          +flower+'</div><div class="point">'
+          +point+'</div></div><div class="index">'
+          +index+'</div></div>';
       }
 
       let $button = document.getElementById("button");
@@ -136,24 +184,41 @@
         let beginHash = $begin.value;
         let list = create(beginHash);
 
-        let cardsfram = list.map(function (item) {
-          return createCardFram(item.card);
+        let cardsfram = list.map(function (item, index) {
+          return createCardFram(item.card, index);
         });
         $cards.innerHTML = cardsfram.join('');
       }
 
-      $button.addEventListener("click", handleClick, false)
+      $button.addEventListener("click", function(){
+        range = null;
+        handleClick();
+      }, false)
 
-      let baseHash = "";
-      if ((/\?hash=/).test(window.location.search)) {
-        baseHash = window.location.search.replace(/\?hash=/, '');
-      }
+      let baseHash, range, search = decodeURIComponent(window.location.search);
+      baseHash = search.match(/[\?|&]hash=([^&]+)/);
+      baseHash = baseHash ? baseHash[1] : "";
+      range = search.match(/[\?|&]range=([^&]+)/);
+      range = range
+        ?range[1].split(",").map(function(item){return parseInt(item);}) 
+        :null;
 
       if (baseHash) {
         $begin.value = baseHash;
         handleClick();
       }
 
+    })();
+  </script>
+  <script>
+    (function(){
+      let clone = document.getElementById("script_clone");
+      let script = document.getElementById("script");
+      // hljs.highlightBlock(clone.children[0]);
+      clone.innerText = script.innerText;
+      hljs.initHighlightingOnLoad();
+      // hljs.configure({useBR: true});
+      // hljs.highlightBlock(clone);
     })();
   </script>
 </body>
