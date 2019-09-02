@@ -1,4 +1,4 @@
-![mahua](mahua-logo.jpg)
+
 ##BLACKJACK
 
 Blackjack, also known as twenty-one, where players dealt two cards, reaching a final score higher than the dealer without exceeding 21 win, is a comparing card game between usually several players and a dealer.
